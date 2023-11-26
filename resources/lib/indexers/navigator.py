@@ -60,8 +60,8 @@ class navigator:
         self.searchFileName = os.path.join(self.base_path, "search.history")
 
     def root(self):
-        self.addDirectoryItem("Filmek", "only_movies", '', 'DefaultFolder.png')
-        self.addDirectoryItem("Sorozatok", "only_series", '', 'DefaultFolder.png')
+        self.addDirectoryItem("Filmek", f"movie_items&url={base_url}/legujabb/", '', 'DefaultFolder.png')
+        self.addDirectoryItem("Sorozatok", f"series_items&url={base_url}/sorozatok/legujabb/", '', 'DefaultFolder.png')
         self.addDirectoryItem("Film Kategóriák", "movie_categories", '', 'DefaultFolder.png')
         self.addDirectoryItem("Keresés", "search", '', 'DefaultFolder.png')
         self.endDirectory()
@@ -81,7 +81,7 @@ class navigator:
 
         self.endDirectory()
 
-    def getItems(self, url, img_url, hun_title, content):
+    def getItems(self, url):
         import re
     
         pattern = r"-.*[eé]vad"
@@ -93,30 +93,15 @@ class navigator:
         
             card_link = movie_box.find('a')['href']
             
-            soup_2 = requests.get(card_link, headers=headers).text
-            soup2 = BeautifulSoup(soup_2, 'html.parser')
-            
-            img_element = soup2.select_one('.img-movie')
-            img_url = img_element['src'] if img_element and 'src' in img_element.attrs else None
-            
-            imdb_rating_element = soup2.select_one('.movielist .btn-default')
-            imdb_rating = imdb_rating_element.text.strip() if imdb_rating_element else None
-            
-            hun_title_element = soup2.select_one('.media-body h4')
-            hun_title = hun_title_element.text.strip() if hun_title_element else None
-            
-            en_title_element = soup2.select_one('.media-body h6')
-            en_title = en_title_element.text.strip() if en_title_element else None
-            
-            content_element = soup2.select_one('.media-body p')
-            content = content_element.text.strip() if content_element else None
-    
+            hun_title = movie_box.find('div', class_='caption-text-title').find('h5').text
+            img_url = movie_box.find('a').find('img')['src']
+
             if hun_title is not None and isinstance(hun_title, str) and re.search(pattern, hun_title):
                 type = 'Sorozat'
-                self.addDirectoryItem(f'[B]|{type}| {hun_title}[/B]', f'get_series_providers&url={card_link}&img_url={img_url}&hun_title={hun_title}&content={content}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title, 'plot': content})                
+                self.addDirectoryItem(f'[B]|{type}| {hun_title}[/B]', f'get_series_providers&url={card_link}&img_url={img_url}&hun_title={hun_title}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title})
             else:
                 type = 'Film'
-                self.addDirectoryItem(f'[B]|{type:^10}| {hun_title}[/B]', f'get_movie_providers&url={card_link}&img_url={img_url}&hun_title={hun_title}&content={content}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title, 'plot': content})
+                self.addDirectoryItem(f'[B]|{type:^10}| {hun_title}[/B]', f'get_movie_providers&url={card_link}&img_url={img_url}&hun_title={hun_title}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title})
             
         try:
             next_page_element = soup.find('li', class_='active').find_next_sibling('li')
@@ -128,37 +113,52 @@ class navigator:
         
         self.endDirectory('movies')
 
-    def getMovieProviders(self, url, mediatype, video_id, img_url, hun_title, content, provider):
+    def getMovieProviders(self, url):
         page = requests.get(url, headers=headers)
         soup = BeautifulSoup(page.text, 'html.parser')
-        
+
+        img_element = soup.select_one('.img-movie')
+        img_url = img_element['src'] if img_element and 'src' in img_element.attrs else None
+
+        imdb_rating_element = soup.select_one('.movielist .btn-default')
+        imdb_rating = imdb_rating_element.text.strip() if imdb_rating_element else None
+
+        hun_title_element = soup.select_one('.media-body h4')
+        hun_title = hun_title_element.text.strip() if hun_title_element else None
+
+        en_title_element = soup.select_one('.media-body h6')
+        en_title = en_title_element.text.strip() if en_title_element else None
+
+        content_element = soup.select_one('.media-body p')
+        content = content_element.text.strip() if content_element else None
+
         anchor_tag = soup.find('a', {'onclick': True})
-        
+
         onclick_value = anchor_tag['onclick']
         link_match = re.search(r"window\.open\('(.+?)'\);", onclick_value)
         link_2 = link_match.group(1)
 
         resp2 = requests.get(link_2, headers=headers).text
-        
+
         soup_2 = BeautifulSoup(resp2, 'html.parser')
         play_icons = soup_2.find_all('i', {'data-mediatype': True, 'data-video_id': True})
-        
+
         unique_combinations = []
-        
+
         for play_icon in play_icons:
             mediatype = play_icon['data-mediatype']
             video_id = play_icon['data-video_id']
-        
+
             td_tags = play_icon.find_all_next('td', limit=4)
-        
+
             provider = td_tags[0].text.strip()
             lang = td_tags[1].text.strip()
             quality = td_tags[2].text.strip()
-        
+
             skip_iteration = False
-        
+
             if mediatype and video_id and provider and lang and quality:
-                
+
                 #lang
                 lang_category = None
                 if 'szinkron' in lang.lower():
@@ -169,17 +169,17 @@ class navigator:
                     lang_category = 'Eredeti'
                 else:
                     lang_category = lang
-                
+
                 #quality
                 quali_category = None
                 if 'mozi' in quality.lower():
                     quali_category = 'Mozis'
                 else:
                     quali_category = quality
-                
+
                 if skip_iteration:
                     continue
-                
+
                 combination_dict = {
                     "mediatype": mediatype,
                     "video_id": video_id,
@@ -187,13 +187,12 @@ class navigator:
                     "lang": lang_category,
                     "quality": quali_category,
                 }
-                
+
                 if combination_dict not in unique_combinations:
                     unique_combinations.append(combination_dict)
 
-                    self.addDirectoryItem(f'[B][COLOR lightblue]{quali_category}[/COLOR] | [COLOR orange]{lang_category}[/COLOR] | [COLOR red]{provider}[/COLOR] | {hun_title}[/B]', f'extract_movie_provider&mediatype={mediatype}&video_id={video_id}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': provider})                        
-        
-        
+                    self.addDirectoryItem(f'[B][COLOR lightblue]{quali_category}[/COLOR] | [COLOR orange]{lang_category}[/COLOR] | [COLOR red]{provider}[/COLOR] | {hun_title}[/B]', f'extract_movie_provider&mediatype={mediatype}&video_id={video_id}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': provider, 'plot': content})
+
         self.endDirectory('movies')        
 
     def extractMovieProviders(self, mediatype, video_id, img_url, hun_title, content, provider):
@@ -202,38 +201,38 @@ class navigator:
             'datatype': mediatype,
             'videodataid': video_id,
         }
-        
+
         resp_3 = requests.post('https://online-filmek.app/ajax/load.php', headers=headers, data=data).text
 
         fix_prov_url = re.sub(r'\"', r'', resp_3)
         fix_prov_url = re.sub(r'(\\/)', '/', fix_prov_url)
         fix_prov_url = f'{quote_plus(fix_prov_url)}'
-        
-        self.addDirectoryItem(f'[B][COLOR red]{provider}[/COLOR] | {hun_title}[/B]', f'playmovie&url={fix_prov_url}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}', img_url, 'DefaultMovies.png', isFolder=False, meta={'title': hun_title, 'plot': content})
+
+        self.addDirectoryItem(f'[B][COLOR red]{provider}[/COLOR] | {hun_title}[/B]', f'playmovie&url={fix_prov_url}', img_url, 'DefaultMovies.png', isFolder=False, meta={'title': hun_title, 'plot': content})
 
         self.endDirectory('movies')
 
-    def getSeriesProviders(self, url, mediatype, video_id, img_url, hun_title, content, provider, ep_title):
+    def getSeriesProviders(self, url):
         page = requests.get(url, headers=headers)
         soup = BeautifulSoup(page.text, 'html.parser')
-        
+
         one_season = []
-        
+
         img_element = soup.select_one('.img-movie')
         img_url = img_element['src'] if img_element and 'src' in img_element.attrs else None
-        
+
         imdb_rating_element = soup.select_one('.movielist .btn-default')
         imdb_rating = imdb_rating_element.text.strip() if imdb_rating_element else None
-        
+
         hun_title_element = soup.select_one('.media-body h4')
         hun_title = hun_title_element.text.strip() if hun_title_element else None
-        
+
         en_title_element = soup.select_one('.media-body h6')
         en_title = en_title_element.text.strip() if en_title_element else None
-        
+
         content_element = soup.select_one('.media-body p')
         content = content_element.text.strip() if content_element else None
-        
+
         series_data = {
             "img_url": img_url,
             "imdb_rating": imdb_rating,
@@ -241,46 +240,46 @@ class navigator:
             "en_title": en_title,
             "tartalom": content
         }
-        
+
         one_season.append(series_data)
-        
+
         try:
             first_ep_link = re.findall(r"window.open\('(https://.*)'\).*\"nofollow\">", str(soup))[0].strip()
             
             response_2 = requests.get(first_ep_link, headers=headers)
             soup_season = BeautifulSoup(response_2.text, 'html.parser')
-            
+
             resz_buttons = soup_season.find_all('div', class_='btn-resz')
-            
+
             for index, resz_button in enumerate(resz_buttons, start=1):
                 button_element = resz_button.find('button')
                 if button_element:
                     resz_number = f"resz{index}"
                     ep_title = button_element.text.strip()
-            
+
                     table = resz_button.find_next('table')
                     if table:
                         rows = table.find_all('tr')
                         for row in rows:
                             cells = row.find_all('td')
-            
+
                             if len(cells) >= 4:
                                 play_icon = cells[0].find('i')
-            
+
                                 if play_icon:
                                     mediatype = play_icon.get('data-mediatype', '')
                                     video_id = play_icon.get('data-video_id', '')
                                 else:
                                     mediatype = ''
                                     video_id = ''
-            
+
                                 quality = cells[1].text.strip()
                                 lang = cells[2].text.strip()
                                 provider = cells[3].text.strip()
                                 provider = re.sub(r'( tipp)', r'', provider)
-            
+
                                 if all([ep_title, mediatype, video_id, quality, lang, provider]):
-                                    
+
                                     # lang
                                     lang_category = None
                                     if 'szinkron' in lang.lower():
@@ -291,14 +290,14 @@ class navigator:
                                         lang_category = 'Eredeti'
                                     else:
                                         lang_category = lang
-            
+
                                     # quality
                                     quali_category = None
                                     if 'mozi' in quality.lower():
                                         quali_category = 'Mozis'
                                     else:
                                         quali_category = quality
-            
+
                                     providers = {
                                         "resz": resz_number,
                                         "ep_title": ep_title,
@@ -308,9 +307,9 @@ class navigator:
                                         "lang": lang_category,
                                         "provider": provider,
                                     }
-            
+
                                     one_season[-1].setdefault("providers_info", []).append(providers)
-                
+
                                     def color_and_concatenate(ep_title):
                                         episode_matches = re.findall(r'(\d+)\.rész', ep_title)
                                         colored_text = ""
@@ -318,7 +317,7 @@ class navigator:
                                             color_code = "lightgreen" if int(episode_number) % 2 == 0 else "yellow"
                                             colored_text += f"[COLOR {color_code}]{episode_number}.rész[/COLOR] "
                                         return colored_text.strip()                                
-                                    
+
                                     for stuffs in one_season:
                                         providers_info = stuffs.get('providers_info', [])
                                         for provider_info in providers_info:
@@ -331,7 +330,7 @@ class navigator:
                                                 provider = provider_info['provider']
 
                                         colored_text = color_and_concatenate(ep_title)
-                                    
+
                                         self.addDirectoryItem(f'[B]{colored_text} | [COLOR lightblue]{quali_category}[/COLOR] | [COLOR orange]{lang_category}[/COLOR] | [COLOR red]{provider}[/COLOR] | {hun_title}[/B]', f'extract_series_provider&mediatype={mediatype}&video_id={video_id}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}&ep_title={ep_title}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title, 'plot': content})
         except IndexError:
             xbmc.log(f'Filmezek | getSeriesProviders | name: No video sources found', xbmc.LOGINFO)
@@ -339,19 +338,19 @@ class navigator:
             notification.notification("Filmezek", "Nem található epizód", time=5000)
 
         self.endDirectory('series')
-    
+
     def extractSeriesProviders(self, mediatype, video_id, img_url, hun_title, content, provider, ep_title):
         data = {
             'datatype': mediatype,
             'videodataid': video_id,
         }
-        
+
         resp_3 = requests.post('https://online-filmek.app/ajax/load.php', headers=headers, data=data).text
 
         fix_prov_url = re.sub(r'\"', r'', resp_3)
         fix_prov_url = re.sub(r'(\\/)', '/', fix_prov_url)
         fix_prov_url = f'{quote_plus(fix_prov_url)}'
-        
+
         def color_and_concatenate(ep_title):
             episode_matches = re.findall(r'(\d+)\.rész', ep_title)
             colored_text = ""
@@ -359,127 +358,36 @@ class navigator:
                 color_code = "lightgreen" if int(episode_number) % 2 == 0 else "yellow"
                 colored_text += f"[COLOR {color_code}]{episode_number}.rész[/COLOR] "
             return colored_text.strip()                       
-        
+
         colored_text = color_and_concatenate(ep_title)
-        
+
         ep_hun_title = ep_title +' - '+ hun_title
-        
-        self.addDirectoryItem(f'[B][COLOR red]{provider}[/COLOR] | {colored_text} | {hun_title}[/B]', f'playmovie&url={fix_prov_url}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}&ep_title={ep_title}', img_url, 'DefaultMovies.png', isFolder=False, meta={'title': ep_hun_title, 'plot': content})
+
+        self.addDirectoryItem(f'[B][COLOR red]{provider}[/COLOR] | {colored_text} | {hun_title}[/B]', f'playmovie&url={fix_prov_url}', img_url, 'DefaultMovies.png', isFolder=False, meta={'title': ep_hun_title, 'plot': content})
 
         self.endDirectory('series')    
-
-    def getOnlyMovies(self):
-        page = requests.get(f"{base_url}/legujabb/", headers=headers)
-        soup = BeautifulSoup(page.text, 'html.parser')
-
-        for movie_box in soup.find_all('div', class_='moviebox'):
-        
-            card_link = movie_box.find('a')['href']
-            
-            soup_2 = requests.get(card_link, headers=headers).text
-            soup2 = BeautifulSoup(soup_2, 'html.parser')
-            
-            img_element = soup2.select_one('.img-movie')
-            img_url = img_element['src'] if img_element and 'src' in img_element.attrs else None
-            
-            imdb_rating_element = soup2.select_one('.movielist .btn-default')
-            imdb_rating = imdb_rating_element.text.strip() if imdb_rating_element else None
-            
-            hun_title_element = soup2.select_one('.media-body h4')
-            hun_title = hun_title_element.text.strip() if hun_title_element else None
-            
-            en_title_element = soup2.select_one('.media-body h6')
-            en_title = en_title_element.text.strip() if en_title_element else None
-            
-            content_element = soup2.select_one('.media-body p')
-            content = content_element.text.strip() if content_element else None
-
-            self.addDirectoryItem(f'[B]{hun_title}[/B]', f'get_movie_providers&url={card_link}&img_url={img_url}&hun_title={hun_title}&content={content}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title, 'plot': content})
-            
-        try:
-            next_page_element = soup.find('li', class_='active').find_next_sibling('li')
-            next_page_url = next_page_element.find('a')['href'] if next_page_element else None
-            
-            self.addDirectoryItem('[I]Következő oldal[/I]', f'movie_items&url={quote_plus(next_page_url)}', '', 'DefaultFolder.png')
-        except AttributeError:
-            xbmc.log(f'Filmezek | getOnlyMovies | next_page_url | csak egy oldal található', xbmc.LOGINFO)
-        
-        self.endDirectory('movies')
-
-    def getOnlySeries(self):
-        page = requests.get(f"{base_url}/sorozatok/legujabb/", headers=headers)
-        soup = BeautifulSoup(page.text, 'html.parser')
-
-        for movie_box in soup.find_all('div', class_='moviebox'):
-        
-            card_link = movie_box.find('a')['href']
-            
-            soup_2 = requests.get(card_link, headers=headers).text
-            soup2 = BeautifulSoup(soup_2, 'html.parser')
-            
-            img_element = soup2.select_one('.img-movie')
-            img_url = img_element['src'] if img_element and 'src' in img_element.attrs else None
-            
-            imdb_rating_element = soup2.select_one('.movielist .btn-default')
-            imdb_rating = imdb_rating_element.text.strip() if imdb_rating_element else None
-            
-            hun_title_element = soup2.select_one('.media-body h4')
-            hun_title = hun_title_element.text.strip() if hun_title_element else None
-            
-            en_title_element = soup2.select_one('.media-body h6')
-            en_title = en_title_element.text.strip() if en_title_element else None
-            
-            content_element = soup2.select_one('.media-body p')
-            content = content_element.text.strip() if content_element else None
-
-            self.addDirectoryItem(f'[B]{hun_title}[/B]', f'get_series_providers&url={card_link}&img_url={img_url}&hun_title={hun_title}&content={content}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title, 'plot': content})
-            
-        try:
-            next_page_element = soup.find('li', class_='active').find_next_sibling('li')
-            next_page_url = next_page_element.find('a')['href'] if next_page_element else None
-            
-            self.addDirectoryItem('[I]Következő oldal[/I]', f'series_items&url={quote_plus(next_page_url)}', '', 'DefaultFolder.png')
-        except AttributeError:
-            xbmc.log(f'Filmezek | getOnlySeries | next_page_url | csak egy oldal található', xbmc.LOGINFO)
-        
-        self.endDirectory('movies')      
 
     def getMovieItems(self, url):
         page = requests.get(url, headers=headers)
         soup = BeautifulSoup(page.text, 'html.parser')
 
         for movie_box in soup.find_all('div', class_='moviebox'):
-        
-            card_link = movie_box.find('a')['href']
-            
-            soup_2 = requests.get(card_link, headers=headers).text
-            soup2 = BeautifulSoup(soup_2, 'html.parser')
-            
-            img_element = soup2.select_one('.img-movie')
-            img_url = img_element['src'] if img_element and 'src' in img_element.attrs else None
-            
-            imdb_rating_element = soup2.select_one('.movielist .btn-default')
-            imdb_rating = imdb_rating_element.text.strip() if imdb_rating_element else None
-            
-            hun_title_element = soup2.select_one('.media-body h4')
-            hun_title = hun_title_element.text.strip() if hun_title_element else None
-            
-            en_title_element = soup2.select_one('.media-body h6')
-            en_title = en_title_element.text.strip() if en_title_element else None
-            
-            content_element = soup2.select_one('.media-body p')
-            content = content_element.text.strip() if content_element else None
 
-            self.addDirectoryItem(f'[B]{hun_title}[/B]', f'get_movie_providers&url={card_link}&img_url={img_url}&hun_title={hun_title}&content={content}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title, 'plot': content})
-            
+            card_link = movie_box.find('a')['href']
+
+            hun_title = movie_box.find('div', class_='caption-text-title').find('h5').text
+            img_url = movie_box.find('a').find('img')['src']
+
+            self.addDirectoryItem(f'[B]{hun_title}[/B]', f'get_movie_providers&url={card_link}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title})
+
         try:
             next_page_element = soup.find('li', class_='active').find_next_sibling('li')
             next_page_url = next_page_element.find('a')['href'] if next_page_element else None
-            
+
             self.addDirectoryItem('[I]Következő oldal[/I]', f'movie_items&url={quote_plus(next_page_url)}', '', 'DefaultFolder.png')
         except AttributeError:
             xbmc.log(f'Filmezek | getMovieItems | next_page_url | csak egy oldal található', xbmc.LOGINFO)
-        
+
         self.endDirectory('movies')
 
     def getSeriesItems(self, url):
@@ -487,43 +395,28 @@ class navigator:
         soup = BeautifulSoup(page.text, 'html.parser')
 
         for movie_box in soup.find_all('div', class_='moviebox'):
-        
-            card_link = movie_box.find('a')['href']
-            
-            soup_2 = requests.get(card_link, headers=headers).text
-            soup2 = BeautifulSoup(soup_2, 'html.parser')
-            
-            img_element = soup2.select_one('.img-movie')
-            img_url = img_element['src'] if img_element and 'src' in img_element.attrs else None
-            
-            imdb_rating_element = soup2.select_one('.movielist .btn-default')
-            imdb_rating = imdb_rating_element.text.strip() if imdb_rating_element else None
-            
-            hun_title_element = soup2.select_one('.media-body h4')
-            hun_title = hun_title_element.text.strip() if hun_title_element else None
-            
-            en_title_element = soup2.select_one('.media-body h6')
-            en_title = en_title_element.text.strip() if en_title_element else None
-            
-            content_element = soup2.select_one('.media-body p')
-            content = content_element.text.strip() if content_element else None
 
-            self.addDirectoryItem(f'[B]{hun_title}[/B]', f'get_series_providers&url={card_link}&img_url={img_url}&hun_title={hun_title}&content={content}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title, 'plot': content})
-            
+            card_link = movie_box.find('a')['href']
+
+            hun_title = movie_box.find('div', class_='caption-text-title').find('h5').text
+            img_url = movie_box.find('a').find('img')['src']
+
+            self.addDirectoryItem(f'[B]{hun_title}[/B]', f'get_series_providers&url={card_link}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title})
+
         try:
             next_page_element = soup.find('li', class_='active').find_next_sibling('li')
             next_page_url = next_page_element.find('a')['href'] if next_page_element else None
-            
+
             self.addDirectoryItem('[I]Következő oldal[/I]', f'series_items&url={quote_plus(next_page_url)}', '', 'DefaultFolder.png')
         except AttributeError:
             xbmc.log(f'Filmezek | getSeriesItems | next_page_url | csak egy oldal található', xbmc.LOGINFO)
-        
+
         self.endDirectory('movies')
 
     def playMovie(self, url):
         try:
             direct_url = urlresolver.resolve(url)
-            
+
             xbmc.log(f'Filmezek | playMovie | direct_url: {direct_url}', xbmc.LOGINFO)
             play_item = xbmcgui.ListItem(path=direct_url)
             xbmcplugin.setResolvedUrl(syshandle, True, listitem=play_item)
