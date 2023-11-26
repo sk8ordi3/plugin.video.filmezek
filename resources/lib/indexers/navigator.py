@@ -419,6 +419,12 @@ class navigator:
 
             xbmc.log(f'Filmezek | playMovie | direct_url: {direct_url}', xbmc.LOGINFO)
             play_item = xbmcgui.ListItem(path=direct_url)
+            if 'm3u8' in direct_url:
+                from inputstreamhelper import Helper
+                is_helper = Helper('hls')
+                if is_helper.check_inputstream():
+                    play_item.setProperty('inputstream', 'inputstream.adaptive')  # compatible with recent builds Kodi 19 API
+                    play_item.setProperty('inputstream.adaptive.manifest_type', 'hls')
             xbmcplugin.setResolvedUrl(syshandle, True, listitem=play_item)
         except:
             xbmc.log(f'Filmezek | playMovie | name: No video sources found', xbmc.LOGINFO)
