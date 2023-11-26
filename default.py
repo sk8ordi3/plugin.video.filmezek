@@ -45,25 +45,19 @@ elif action == 'movie_categories':
     navigator.navigator().getMovieCategories()
 
 elif action == 'get_movie_providers':
-    navigator.navigator().getMovieProviders(url, mediatype, video_id, img_url, hun_title, content, provider)
+    navigator.navigator().getMovieProviders(url)
 
 elif action == 'extract_movie_provider':
     navigator.navigator().extractMovieProviders(mediatype, video_id, img_url, hun_title, content, provider)
 
 elif action == 'get_series_providers':
-    navigator.navigator().getSeriesProviders(url, mediatype, video_id, img_url, hun_title, content, provider, ep_title)
+    navigator.navigator().getSeriesProviders(url)
 
 elif action == 'extract_series_provider':
     navigator.navigator().extractSeriesProviders(mediatype, video_id, img_url, hun_title, content, provider, ep_title)
 
-elif action == 'only_movies':
-    navigator.navigator().getOnlyMovies()
-
-elif action == 'only_series':
-    navigator.navigator().getOnlySeries()
-
 elif action == 'items':
-    navigator.navigator().getItems(url, img_url, hun_title, content)
+    navigator.navigator().getItems(url)
 
 elif action == 'search':
     navigator.navigator().getSearches()
