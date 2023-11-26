@@ -467,7 +467,7 @@ class navigator:
             file.write(f"{search_text}\n")
             file.close()
             url = f"{base_url}/search_cat.php?film={search_text}&type=1"
-            self.getItems(url, None, None, None)
+            self.getItems(url)
 
     def getSearchText(self):
         search_text = ''
