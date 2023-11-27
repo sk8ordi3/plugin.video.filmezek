@@ -434,6 +434,9 @@ class navigator:
             if len(subtitles) > 0:
                 errMsg = ""
                 try:
+                    if not os.path.exists(self.base_path):
+                        errMsg = "Hiba a kiegészítő userdata könyvtár létrehozásakor"
+                        os.mkdir(self.base_path)
                     if not os.path.exists(os.path.join(self.base_path, 'subtitles')):
                         errMsg = "Hiba a felirat könyvtár létrehozásakor!"
                         os.mkdir(os.path.join(self.base_path, 'subtitles'))
