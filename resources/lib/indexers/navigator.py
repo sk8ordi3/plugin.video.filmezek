@@ -434,12 +434,12 @@ class navigator:
             if len(subtitles) > 0:
                 errMsg = ""
                 try:
-                    if not os.path.exists(os.path.join(f'{self.base_path}', 'subtitles')):
+                    if not os.path.exists(os.path.join(self.base_path, 'subtitles')):
                         errMsg = "Hiba a felirat könyvtár létrehozásakor!"
-                        os.mkdir(os.path.join(f'{self.base_path}', "subtitles"))
-                    for f in os.listdir(os.path.join(f'{self.base_path}', "subtitles")):
+                        os.mkdir(os.path.join(self.base_path, 'subtitles'))
+                    for f in os.listdir(os.path.join(self.base_path, 'subtitles')):
                         errMsg = "Hiba a korábbi feliratok törlésekor!"
-                        os.remove(os.path.join(f'{self.base_path}', "subtitles", f'{f}'))
+                        os.remove(os.path.join(self.base_path, 'subtitles', f))
                     subtitleFiles = []
                     for subtitle in subtitles:
                         errMsg = "Hiba a felirat fájl letöltésekor!"
@@ -447,10 +447,10 @@ class navigator:
                         subtitlePage.encoding = page.apparent_encoding
                         if subtitlePage.ok and len(subtitlePage.text) > 0:
                             errMsg = "Hiba a felirat fájl mentésekor!"
-                            file =  open(os.path.join(f'{self.base_path}', 'subtitles', f'{subtitle["language"]}.vtt'), "w")
+                            file =  open(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'), "w")
                             file.write(subtitlePage.text)
                             file.close()
-                            subtitleFiles.append(os.path.join(f'{self.base_path}', 'subtitles', f'{subtitle["language"]}.vtt'))
+                            subtitleFiles.append(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'))
                         else:
                             raise
                     if len(subtitleFiles) > 0:
