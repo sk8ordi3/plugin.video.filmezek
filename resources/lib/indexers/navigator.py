@@ -447,7 +447,7 @@ class navigator:
                         subtitlePage.encoding = page.apparent_encoding
                         if subtitlePage.ok and len(subtitlePage.text) > 0:
                             errMsg = "Hiba a felirat fájl mentésekor!"
-                            file =  open(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'), "w")
+                            file =  open(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'), "w", encoding="utf-8")
                             file.write(subtitlePage.text)
                             file.close()
                             subtitleFiles.append(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'))
