@@ -414,9 +414,15 @@ class navigator:
         self.endDirectory('movies')
 
     def playMovie(self, url):
+        page = requests.get(url, headers=headers)
+        parsed_uri = urlparse(page.url)
+        soup = BeautifulSoup(page.text, 'html.parser')
+        captions = soup.find_all('track', attrs={"kind": "captions"})
+        subtitles = []
+        for caption in captions:
+            subtitles.append({"language": caption["srclang"], "url": f'{parsed_uri.scheme}://{parsed_uri.netloc}{caption["src"]}'})
         try:
             direct_url = urlresolver.resolve(url)
-
             xbmc.log(f'Filmezek | playMovie | direct_url: {direct_url}', xbmc.LOGINFO)
             play_item = xbmcgui.ListItem(path=direct_url)
             if 'm3u8' in direct_url:
@@ -425,6 +431,33 @@ class navigator:
                 if is_helper.check_inputstream():
                     play_item.setProperty('inputstream', 'inputstream.adaptive')  # compatible with recent builds Kodi 19 API
                     play_item.setProperty('inputstream.adaptive.manifest_type', 'hls')
+            if len(subtitles) > 0:
+                errMsg = ""
+                try:
+                    if not os.path.exists(f'{self.base_path}/subtitles'):
+                        errMsg = "Hiba a felirat könyvtár létrehozásakor!"
+                        os.mkdir(f"{self.base_path}/subtitles")
+                    for f in os.listdir(f"{self.base_path}/subtitles"):
+                        errMsg = "Hiba a korábbi feliratok törlésekor!"
+                        os.remove(f"{self.base_path}/subtitles/{f}")
+                    subtitleFiles = []
+                    for subtitle in subtitles:
+                        errMsg = "Hiba a felirat fájl letöltésekor!"
+                        subtitlePage = requests.get(subtitle["url"])
+                        subtitlePage.encoding = page.apparent_encoding
+                        if subtitlePage.ok and len(subtitlePage.text) > 0:
+                            errMsg = "Hiba a felirat fájl mentésekor!"
+                            file =  open(f'{self.base_path}/subtitles/{subtitle["language"]}.vtt', "w")
+                            file.write(subtitlePage.text)
+                            file.close()
+                            subtitleFiles.append(f'{self.base_path}/subtitles/{subtitle["language"]}.vtt')
+                        else:
+                            raise
+                    if len(subtitleFiles) > 0:
+                        errMsg = "Hiba a feliratok beállításakor!"
+                        play_item.setSubtitles(subtitleFiles)
+                except:
+                    xbmcgui.Dialog().notification("Filmezek", errMsg)
             xbmcplugin.setResolvedUrl(syshandle, True, listitem=play_item)
         except:
             xbmc.log(f'Filmezek | playMovie | name: No video sources found', xbmc.LOGINFO)
