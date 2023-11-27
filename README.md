@@ -3,6 +3,8 @@
 
 Kodi kiegészítő a filmezek.com-hoz
 
+1.0.4 - Felirat letöltés megvalósítása by vargalex
+
 1.0.3 - Keresés bugFix by vargalex
 
 1.0.2 - m3u8 linkek lejátszása inputstream adaptive használatával by vargalex

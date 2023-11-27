@@ -1,3 +1,5 @@
+[B]1.0.4[/B]
+- Felirat letöltés megvalósítása
 [B]1.0.3[/B]
 - keresés bugFix
 [B]1.0.2[/B]
