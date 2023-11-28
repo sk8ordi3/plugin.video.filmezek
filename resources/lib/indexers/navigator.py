@@ -447,11 +447,10 @@ class navigator:
                     for subtitle in subtitles:
                         errMsg = "Hiba a felirat fájl letöltésekor!"
                         subtitlePage = requests.get(subtitle["url"])
-                        subtitlePage.encoding = page.apparent_encoding
-                        if subtitlePage.ok and len(subtitlePage.text) > 0:
+                        if subtitlePage.ok and len(subtitlePage.content) > 0:
                             errMsg = "Hiba a felirat fájl mentésekor!"
-                            file =  open(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'), "w", encoding="utf-8")
-                            file.write(subtitlePage.text)
+                            file =  open(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'), "wb")
+                            file.write(subtitlePage.content)
                             file.close()
                             subtitleFiles.append(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'))
                         else:
