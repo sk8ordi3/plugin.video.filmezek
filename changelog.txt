@@ -1,3 +1,5 @@
+[B]1.0.6[/B]
+- Felirat bugFix (Windows)
 [B]1.0.5[/B]
 - Felirat könyvtárkezelés bugFix
 [B]1.0.4[/B]
