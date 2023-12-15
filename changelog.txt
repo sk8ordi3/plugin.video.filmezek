@@ -1,3 +1,5 @@
+[B]1.0.8[/B]
+- os verzió kiszedése
 [B]1.0.7[/B]
 - os, kodi, addon verziószám írása a logba
 [B]1.0.6[/B]

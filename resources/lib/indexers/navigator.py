@@ -30,21 +30,11 @@ sysaddon = sys.argv[0]
 syshandle = int(sys.argv[1])
 addonFanart = xbmcaddon.Addon().getAddonInfo('fanart')
 
-import platform
-import xml.etree.ElementTree as ET
-
-os_info = platform.platform()
+version = xbmcaddon.Addon().getAddonInfo('version')
 kodi_version = xbmc.getInfoLabel('System.BuildVersion')
+base_log_info = f'Filmezek | v{version} | Kodi: {kodi_version[:5]}'
 
-current_directory = os.path.dirname(os.path.abspath(__file__))
-parent_directory = os.path.dirname(os.path.dirname(os.path.dirname(current_directory)))
-addon_xml_path = os.path.join(parent_directory, "addon.xml")
-
-tree = ET.parse(addon_xml_path)
-root = tree.getroot()
-version = root.attrib.get("version")
-
-xbmc.log(f'Filmezek | v{version} | Kodi: {kodi_version[:5]}| OS: {os_info}', xbmc.LOGINFO)
+xbmc.log(f'{base_log_info}', xbmc.LOGINFO)
 
 base_url = 'https://filmezek.com'
 
@@ -124,7 +114,7 @@ class navigator:
             
             self.addDirectoryItem('[I]Következő oldal[/I]', f'items&url={quote_plus(next_page_url)}', '', 'DefaultFolder.png')
         except AttributeError:
-            xbmc.log(f'Filmezek | v{version} | Kodi: {kodi_version[:5]}| OS: {os_info} | getItems | next_page_url | csak egy oldal található', xbmc.LOGINFO)
+            xbmc.log(f'{base_log_info}| getItems | next_page_url | csak egy oldal található', xbmc.LOGINFO)
         
         self.endDirectory('movies')
 
@@ -348,7 +338,7 @@ class navigator:
 
                                         self.addDirectoryItem(f'[B]{colored_text} | [COLOR lightblue]{quali_category}[/COLOR] | [COLOR orange]{lang_category}[/COLOR] | [COLOR red]{provider}[/COLOR] | {hun_title}[/B]', f'extract_series_provider&mediatype={mediatype}&video_id={video_id}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}&ep_title={ep_title}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title, 'plot': content})
         except IndexError:
-            xbmc.log(f'Filmezek | v{version} | Kodi: {kodi_version[:5]}| OS: {os_info} | getSeriesProviders | name: No video sources found', xbmc.LOGINFO)
+            xbmc.log(f'{base_log_info}| getSeriesProviders | name: No video sources found', xbmc.LOGINFO)
             notification = xbmcgui.Dialog()
             notification.notification("Filmezek", "Nem található epizód", time=5000)
 
@@ -401,7 +391,7 @@ class navigator:
 
             self.addDirectoryItem('[I]Következő oldal[/I]', f'movie_items&url={quote_plus(next_page_url)}', '', 'DefaultFolder.png')
         except AttributeError:
-            xbmc.log(f'Filmezek | v{version} | Kodi: {kodi_version[:5]}| OS: {os_info} | getMovieItems | next_page_url | csak egy oldal található', xbmc.LOGINFO)
+            xbmc.log(f'{base_log_info}| getMovieItems | next_page_url | csak egy oldal található', xbmc.LOGINFO)
 
         self.endDirectory('movies')
 
@@ -424,7 +414,7 @@ class navigator:
 
             self.addDirectoryItem('[I]Következő oldal[/I]', f'series_items&url={quote_plus(next_page_url)}', '', 'DefaultFolder.png')
         except AttributeError:
-            xbmc.log(f'Filmezek | v{version} | Kodi: {kodi_version[:5]}| OS: {os_info} | getSeriesItems | next_page_url | csak egy oldal található', xbmc.LOGINFO)
+            xbmc.log(f'{base_log_info}| getSeriesItems | next_page_url | csak egy oldal található', xbmc.LOGINFO)
 
         self.endDirectory('movies')
 
@@ -438,7 +428,7 @@ class navigator:
             subtitles.append({"language": caption["srclang"], "url": f'{parsed_uri.scheme}://{parsed_uri.netloc}{caption["src"]}'})
         try:
             direct_url = urlresolver.resolve(url)
-            xbmc.log(f'Filmezek | v{version} | Kodi: {kodi_version[:5]}| OS: {os_info} | playMovie | direct_url: {direct_url}', xbmc.LOGINFO)
+            xbmc.log(f'{base_log_info}| playMovie | direct_url: {direct_url}', xbmc.LOGINFO)
             play_item = xbmcgui.ListItem(path=direct_url)
             if 'm3u8' in direct_url:
                 from inputstreamhelper import Helper
@@ -477,7 +467,7 @@ class navigator:
                     xbmcgui.Dialog().notification("Filmezek", errMsg)
             xbmcplugin.setResolvedUrl(syshandle, True, listitem=play_item)
         except:
-            xbmc.log(f'Filmezek | v{version} | Kodi: {kodi_version[:5]}| OS: {os_info} | playMovie | name: No video sources found', xbmc.LOGINFO)
+            xbmc.log(f'{base_log_info}| playMovie | name: No video sources found', xbmc.LOGINFO)
             notification = xbmcgui.Dialog()
             notification.notification("Filmezek", "Törölt tartalom", time=5000)
 

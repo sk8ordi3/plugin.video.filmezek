@@ -3,6 +3,8 @@
 
 Kodi kiegészítő a filmezek.com-hoz
 
+1.0.8 - os verzió kiszedése
+
 1.0.7 - os, kodi, addon verziószám írása a logba
 
 1.0.6 - Felirat bugFix (Windows)
