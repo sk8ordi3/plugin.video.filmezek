@@ -137,11 +137,7 @@ class navigator:
         content_element = soup.select_one('.media-body p')
         content = content_element.text.strip() if content_element else None
 
-        anchor_tag = soup.find('a', {'onclick': True})
-
-        onclick_value = anchor_tag['onclick']
-        link_match = re.search(r"window\.open\('(.+?)'\);", onclick_value)
-        link_2 = link_match.group(1)
+        link_2 = re.findall(r'<a class=\"text-center list-group-item active\" href=\"(.*?)\"', str(soup))[0].strip()
 
         resp2 = requests.get(link_2, headers=headers).text
 
@@ -249,7 +245,7 @@ class navigator:
         one_season.append(series_data)
 
         try:
-            first_ep_link = re.findall(r"window.open\('(https://.*)'\).*\"nofollow\">", str(soup))[0].strip()
+            first_ep_link = re.findall(r'href=\"(.*?)\" rel=\"nofollow\".*?>', str(soup))[0].strip()
             
             response_2 = requests.get(first_ep_link, headers=headers)
             soup_season = BeautifulSoup(response_2.text, 'html.parser')

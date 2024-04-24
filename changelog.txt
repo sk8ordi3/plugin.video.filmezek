@@ -1,3 +1,5 @@
+[B]1.0.9[/B]
+- oldal változás követése
 [B]1.0.8[/B]
 - os verzió kiszedése
 [B]1.0.7[/B]
