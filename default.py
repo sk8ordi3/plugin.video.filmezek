@@ -53,9 +53,6 @@ elif action == 'extract_movie_provider':
 elif action == 'get_series_providers':
     navigator.navigator().getSeriesProviders(url)
 
-elif action == 'extract_series_provider':
-    navigator.navigator().extractSeriesProviders(mediatype, video_id, img_url, hun_title, content, provider, ep_title)
-
 elif action == 'items':
     navigator.navigator().getItems(url)
 

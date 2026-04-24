@@ -32,9 +32,11 @@ addonFanart = xbmcaddon.Addon().getAddonInfo('fanart')
 
 version = xbmcaddon.Addon().getAddonInfo('version')
 kodi_version = xbmc.getInfoLabel('System.BuildVersion')
-base_log_info = f'Filmezek | v{version} | Kodi: {kodi_version[:5]}'
+addon_name = 'Filmezek'
+base_log_info = f'{addon_name} | v{version} | Kodi: {kodi_version[:5]}'
 
 xbmc.log(f'{base_log_info}', xbmc.LOGINFO)
+
 
 base_url = 'https://filmezek.com'
 
@@ -122,82 +124,80 @@ class navigator:
         page = requests.get(url, headers=headers)
         soup = BeautifulSoup(page.text, 'html.parser')
 
+        iframe_element = soup.select_one('iframe#embedPlayer')
+        direct_video_link = ""
+        if iframe_element and 'src' in iframe_element.attrs:
+            direct_video_link = iframe_element['src']
+            if direct_video_link.startswith('//'):
+                direct_video_link = 'https:' + direct_video_link
+
         img_element = soup.select_one('.img-movie')
         img_url = img_element['src'] if img_element and 'src' in img_element.attrs else None
-
-        imdb_rating_element = soup.select_one('.movielist .btn-default')
-        imdb_rating = imdb_rating_element.text.strip() if imdb_rating_element else None
-
         hun_title_element = soup.select_one('.media-body h4')
         hun_title = hun_title_element.text.strip() if hun_title_element else None
-
-        en_title_element = soup.select_one('.media-body h6')
-        en_title = en_title_element.text.strip() if en_title_element else None
-
         content_element = soup.select_one('.media-body p')
         content = content_element.text.strip() if content_element else None
 
-        link_2 = re.findall(r'<a class=\"text-center list-group-item active\" href=\"(.*?)\"', str(soup))[0].strip()
+        if direct_video_link:
+            self.addDirectoryItem(
+                f'[B][Főoldal] - [COLOR lightgreen]{hun_title}[/COLOR][/B]', 
+                f'playmovie&url={quote_plus(direct_video_link)}&img_url={img_url}&hun_title={hun_title}&content={content}', 
+                img_url, 'DefaultMovies.png', 
+                isFolder=False, meta={'title': hun_title, 'plot': content})
 
-        resp2 = requests.get(link_2, headers=headers).text
+        link_2_matches = re.findall(r'<a class=\"text-center list-group-item active\" href=\"(.*?)\"', str(soup))
+        
+        if link_2_matches:
+            link_2 = link_2_matches[0].strip()
+            resp2 = requests.get(link_2, headers=headers).text
+            soup_2 = BeautifulSoup(resp2, 'html.parser')
 
-        soup_2 = BeautifulSoup(resp2, 'html.parser')
-        play_icons = soup_2.find_all('i', {'data-mediatype': True, 'data-video_id': True})
+            play_icons = soup_2.find_all('i', {'data-mediatype': True, 'data-video_id': True})
 
-        unique_combinations = []
+            unique_combinations = []
 
-        for play_icon in play_icons:
-            mediatype = play_icon['data-mediatype']
-            video_id = play_icon['data-video_id']
+            for play_icon in play_icons:
+                mediatype = play_icon['data-mediatype']
+                video_id = play_icon['data-video_id']
 
-            td_tags = play_icon.find_all_next('td', limit=4)
+                td_tags = play_icon.find_all_previous('td', limit=5)
 
-            provider = td_tags[0].text.strip()
-            lang = td_tags[1].text.strip()
-            quality = td_tags[2].text.strip()
+                provider = td_tags[3].text.strip()
+                lang = td_tags[2].text.strip()
+                quality = td_tags[1].text.strip()
 
-            skip_iteration = False
+                playicon_tag = td_tags[4].find('a', class_='playicon')
+                provider_link = playicon_tag['href'] if playicon_tag and 'href' in playicon_tag.attrs else None
+                
+                if provider_link and provider_link.startswith('//'):
+                    provider_link = 'https:' + provider_link
 
-            if mediatype and video_id and provider and lang and quality:
+                if mediatype and video_id and provider and lang and quality and provider_link:
+                    lang_category = 'Szinkron' if 'szinkron' in lang.lower() else 'Felirat' if 'felirat' in lang.lower() else 'Eredeti' if 'eredet' in lang.lower() else lang
+                    quali_category = 'Mozis' if 'mozi' in quality.lower() else quality
 
-                #lang
-                lang_category = None
-                if 'szinkron' in lang.lower():
-                    lang_category = 'Szinkron'
-                elif 'felirat' in lang.lower():
-                    lang_category = 'Felirat'
-                elif 'eredet' in lang.lower():
-                    lang_category = 'Eredeti'
-                else:
-                    lang_category = lang
+                    combination_dict = {
+                        "provider_link": provider_link,
+                        "provider": provider,
+                        "lang": lang_category,
+                        "quality": quali_category,
+                    }
 
-                #quality
-                quali_category = None
-                if 'mozi' in quality.lower():
-                    quali_category = 'Mozis'
-                else:
-                    quali_category = quality
+                    if combination_dict not in unique_combinations:
+                        unique_combinations.append(combination_dict)
 
-                if skip_iteration:
-                    continue
+                        self.addDirectoryItem(
+                            f'[B][COLOR lightblue]{quali_category}[/COLOR] | [COLOR orange]{lang_category}[/COLOR] | [COLOR red]{provider}[/COLOR] | {hun_title}[/B]', 
+                            f'playmovie&url={quote_plus(provider_link)}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}', 
+                            img_url, 
+                            'DefaultMovies.png', 
+                            isFolder=False, 
+                            meta={'title': provider, 'plot': content}
+                        )
 
-                combination_dict = {
-                    "mediatype": mediatype,
-                    "video_id": video_id,
-                    "provider": provider,
-                    "lang": lang_category,
-                    "quality": quali_category,
-                }
-
-                if combination_dict not in unique_combinations:
-                    unique_combinations.append(combination_dict)
-
-                    self.addDirectoryItem(f'[B][COLOR lightblue]{quali_category}[/COLOR] | [COLOR orange]{lang_category}[/COLOR] | [COLOR red]{provider}[/COLOR] | {hun_title}[/B]', f'extract_movie_provider&mediatype={mediatype}&video_id={video_id}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': provider, 'plot': content})
-
-        self.endDirectory('movies')        
+        self.endDirectory('movies')
 
     def extractMovieProviders(self, mediatype, video_id, img_url, hun_title, content, provider):
-
         data = {
             'datatype': mediatype,
             'videodataid': video_id,
@@ -245,7 +245,7 @@ class navigator:
         one_season.append(series_data)
 
         try:
-            first_ep_link = re.findall(r'href=\"(.*?)\" rel=\"nofollow\".*?>', str(soup))[0].strip()
+            first_ep_link = re.findall(r'a href=\"(.*?)\" rel=\"nofollow\".*?>', str(soup))[0].strip()
             
             response_2 = requests.get(first_ep_link, headers=headers)
             soup_season = BeautifulSoup(response_2.text, 'html.parser')
@@ -265,7 +265,7 @@ class navigator:
                             cells = row.find_all('td')
 
                             if len(cells) >= 4:
-                                play_icon = cells[0].find('i')
+                                play_icon = cells[4].find('i')
 
                                 if play_icon:
                                     mediatype = play_icon.get('data-mediatype', '')
@@ -278,6 +278,7 @@ class navigator:
                                 lang = cells[2].text.strip()
                                 provider = cells[3].text.strip()
                                 provider = re.sub(r'( tipp)', r'', provider)
+                                media_url = cells[0].find('a').get('href')
 
                                 if all([ep_title, mediatype, video_id, quality, lang, provider]):
 
@@ -307,12 +308,12 @@ class navigator:
                                         "quality": quali_category,
                                         "lang": lang_category,
                                         "provider": provider,
+                                        "media_url": media_url,
                                     }
-
                                     one_season[-1].setdefault("providers_info", []).append(providers)
 
                                     def color_and_concatenate(ep_title):
-                                        episode_matches = re.findall(r'(\d+)\.rész', ep_title)
+                                        episode_matches = re.findall(r'(\d+)\. *rész', ep_title)
                                         colored_text = ""
                                         for episode_number in episode_matches:
                                             color_code = "lightgreen" if int(episode_number) % 2 == 0 else "yellow"
@@ -329,44 +330,17 @@ class navigator:
                                                 quality = provider_info['quality']
                                                 lang = provider_info['lang']
                                                 provider = provider_info['provider']
+                                                media_url = provider_info['media_url']
 
                                         colored_text = color_and_concatenate(ep_title)
 
-                                        self.addDirectoryItem(f'[B]{colored_text} | [COLOR lightblue]{quali_category}[/COLOR] | [COLOR orange]{lang_category}[/COLOR] | [COLOR red]{provider}[/COLOR] | {hun_title}[/B]', f'extract_series_provider&mediatype={mediatype}&video_id={video_id}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}&ep_title={ep_title}', img_url, 'DefaultMovies.png', isFolder=True, meta={'title': hun_title, 'plot': content})
+                                        self.addDirectoryItem(f'[B]{colored_text} | [COLOR lightblue]{quali_category}[/COLOR] | [COLOR orange]{lang_category}[/COLOR] | [COLOR red]{provider}[/COLOR] | {hun_title}[/B]', f'playmovie&url={media_url}', img_url, 'DefaultMovies.png', isFolder=False, meta={'title': hun_title, 'plot': content})
         except IndexError:
             xbmc.log(f'{base_log_info}| getSeriesProviders | name: No video sources found', xbmc.LOGINFO)
             notification = xbmcgui.Dialog()
             notification.notification("Filmezek", "Nem található epizód", time=5000)
 
         self.endDirectory('series')
-
-    def extractSeriesProviders(self, mediatype, video_id, img_url, hun_title, content, provider, ep_title):
-        data = {
-            'datatype': mediatype,
-            'videodataid': video_id,
-        }
-
-        resp_3 = requests.post('https://online-filmek.app/ajax/load.php', headers=headers, data=data).text
-
-        fix_prov_url = re.sub(r'\"', r'', resp_3)
-        fix_prov_url = re.sub(r'(\\/)', '/', fix_prov_url)
-        fix_prov_url = f'{quote_plus(fix_prov_url)}'
-
-        def color_and_concatenate(ep_title):
-            episode_matches = re.findall(r'(\d+)\.rész', ep_title)
-            colored_text = ""
-            for episode_number in episode_matches:
-                color_code = "lightgreen" if int(episode_number) % 2 == 0 else "yellow"
-                colored_text += f"[COLOR {color_code}]{episode_number}.rész[/COLOR] "
-            return colored_text.strip()                       
-
-        colored_text = color_and_concatenate(ep_title)
-
-        ep_hun_title = ep_title +' - '+ hun_title
-
-        self.addDirectoryItem(f'[B][COLOR red]{provider}[/COLOR] | {colored_text} | {hun_title}[/B]', f'playmovie&url={fix_prov_url}', img_url, 'DefaultMovies.png', isFolder=False, meta={'title': ep_hun_title, 'plot': content})
-
-        self.endDirectory('series')    
 
     def getMovieItems(self, url):
         page = requests.get(url, headers=headers)
@@ -415,57 +389,46 @@ class navigator:
         self.endDirectory('movies')
 
     def playMovie(self, url):
-        page = requests.get(url, headers=headers)
-        parsed_uri = urlparse(page.url)
-        soup = BeautifulSoup(page.text, 'html.parser')
-        captions = soup.find_all('track', attrs={"kind": "captions"})
-        subtitles = []
-        for caption in captions:
-            subtitles.append({"language": caption["srclang"], "url": f'{parsed_uri.scheme}://{parsed_uri.netloc}{caption["src"]}'})
+        resolved_url = None
+        subtitles = None
         try:
-            direct_url = urlresolver.resolve(url)
-            xbmc.log(f'{base_log_info}| playMovie | direct_url: {direct_url}', xbmc.LOGINFO)
-            play_item = xbmcgui.ListItem(path=direct_url)
-            if 'm3u8' in direct_url:
-                from inputstreamhelper import Helper
-                is_helper = Helper('hls')
-                if is_helper.check_inputstream():
-                    play_item.setProperty('inputstream', 'inputstream.adaptive')  # compatible with recent builds Kodi 19 API
-                    play_item.setProperty('inputstream.adaptive.manifest_type', 'hls')
-            if len(subtitles) > 0:
-                errMsg = ""
-                try:
-                    if not os.path.exists(self.base_path):
-                        errMsg = "Hiba a kiegészítő userdata könyvtár létrehozásakor"
-                        os.mkdir(self.base_path)
-                    if not os.path.exists(os.path.join(self.base_path, 'subtitles')):
-                        errMsg = "Hiba a felirat könyvtár létrehozásakor!"
-                        os.mkdir(os.path.join(self.base_path, 'subtitles'))
-                    for f in os.listdir(os.path.join(self.base_path, 'subtitles')):
-                        errMsg = "Hiba a korábbi feliratok törlésekor!"
-                        os.remove(os.path.join(self.base_path, 'subtitles', f))
-                    subtitleFiles = []
-                    for subtitle in subtitles:
-                        errMsg = "Hiba a felirat fájl letöltésekor!"
-                        subtitlePage = requests.get(subtitle["url"])
-                        if subtitlePage.ok and len(subtitlePage.content) > 0:
-                            errMsg = "Hiba a felirat fájl mentésekor!"
-                            file =  open(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'), "wb")
-                            file.write(subtitlePage.content)
-                            file.close()
-                            subtitleFiles.append(os.path.join(self.base_path, 'subtitles', f'{subtitle["language"]}.vtt'))
+            url_to_resolve = url
+
+            hmf_forsub = urlresolver.HostedMediaFile(url_to_resolve)
+            if hmf_forsub:
+                resolvers = hmf_forsub.get_resolvers()
+                if resolvers:
+                    r = resolvers[0]
+                    try:
+                        host, media_id = r.get_host_and_id(url_to_resolve)
+                        res_data = r.get_media_url(host, media_id, subs=True)
+                        
+                        if isinstance(res_data, tuple):
+                            resolved_url = res_data[0]
+                            subtitles = res_data[1]
                         else:
-                            raise
-                    if len(subtitleFiles) > 0:
-                        errMsg = "Hiba a feliratok beállításakor!"
-                        play_item.setSubtitles(subtitleFiles)
-                except:
-                    xbmcgui.Dialog().notification("Filmezek", errMsg)
-            xbmcplugin.setResolvedUrl(syshandle, True, listitem=play_item)
-        except:
-            xbmc.log(f'{base_log_info}| playMovie | name: No video sources found', xbmc.LOGINFO)
+                            resolved_url = res_data
+                    except:
+                        pass
+
+            if not resolved_url:
+                resolved_url = urlresolver.resolve(url_to_resolve)
+            if resolved_url:
+                play_item = xbmcgui.ListItem(path=resolved_url)
+
+                if subtitles and isinstance(subtitles, dict):
+                    play_item.setSubtitles(list(subtitles.values()))
+                
+                xbmc.log(f'{base_log_info}| playMovie | resolved_url: {resolved_url}', xbmc.LOGINFO)
+                xbmcplugin.setResolvedUrl(syshandle, True, listitem=play_item)
+            else:
+                raise Exception("nincs video...")
+        except Exception as e:
+            xbmc.log(f'{base_log_info}| playMovie | Hiba: {e}', xbmc.LOGERROR)
             notification = xbmcgui.Dialog()
-            notification.notification("Filmezek", "Törölt tartalom", time=5000)
+            notification.notification(addon_name, "A videó nem érhető el vagy törölték.", time=5000)
+
+            xbmcplugin.setResolvedUrl(syshandle, False, listitem=xbmcgui.ListItem())
 
     def getSearches(self):
         self.addDirectoryItem('[COLOR lightgreen]Új keresés[/COLOR]', 'newsearch', '', 'DefaultFolder.png')
