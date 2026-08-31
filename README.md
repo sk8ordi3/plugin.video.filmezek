@@ -4,6 +4,8 @@
 Kodi kiegészítő a filmezek.com-hoz
 
 
+1.0.13 - oldal változás követése
+
 1.0.12 - oldal változás követése
 
 1.0.11 - Sorozat bugfix

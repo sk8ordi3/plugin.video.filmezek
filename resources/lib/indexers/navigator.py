@@ -2,7 +2,7 @@
 
 '''
     Filmezek Addon
-    Copyright (C) 2023 heg, vargalex
+    Copyright (C) 2026 heg, vargalex
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import urllib.parse
 import resolveurl as urlresolver
 from resources.lib.modules.utils import py2_decode, py2_encode
 import html
+import re
 
 sysaddon = sys.argv[0]
 syshandle = int(sys.argv[1])
@@ -72,7 +73,7 @@ class navigator:
         self.addDirectoryItem("Sorozatok", f"series_items&url={base_url}/sorozatok/legujabb/", '', 'DefaultFolder.png')
         self.addDirectoryItem("Film Kategóriák", "movie_categories", '', 'DefaultFolder.png')
         self.addDirectoryItem("Keresés", "search", '', 'DefaultFolder.png')
-        self.endDirectory()
+        self.endDirectory('')
         
     def getMovieCategories(self):
         page = requests.get(f"{base_url}/filmek/legujabb/", headers=headers)
@@ -86,11 +87,9 @@ class navigator:
             
             self.addDirectoryItem(f"{genre_name}", f'items&url={enc_link}', '', 'DefaultFolder.png')
 
-        self.endDirectory()
+        self.endDirectory('')
 
     def getItems(self, url):
-        import re
-    
         pattern = r"-.*[eé]vad"
         
         page = requests.get(url, headers=headers)
@@ -130,7 +129,7 @@ class navigator:
             direct_video_link = iframe_element['src']
             if direct_video_link.startswith('//'):
                 direct_video_link = 'https:' + direct_video_link
-
+    
         img_element = soup.select_one('.img-movie')
         img_url = img_element['src'] if img_element and 'src' in img_element.attrs else None
         hun_title_element = soup.select_one('.media-body h4')
@@ -145,47 +144,87 @@ class navigator:
                 img_url, 'DefaultMovies.png', 
                 isFolder=False, meta={'title': hun_title, 'plot': content})
 
+        panel_footer = soup.select_one('.panel-footer')
+        if panel_footer:
+            buttons = panel_footer.find_all('button', class_='embed-switch')
+
+            seen_urls = set()
+            if direct_video_link:
+                seen_urls.add(direct_video_link)
+            
+            unique_buttons = []
+            
+            for btn in buttons:
+                alt_url = btn.get('data-url')
+                if alt_url:
+                    if alt_url.startswith('//'):
+                        alt_url = 'https:' + alt_url
+                    if alt_url not in seen_urls:
+                        seen_urls.add(alt_url)
+                        unique_buttons.append((btn, alt_url))
+
+            for idx, (btn, alt_url) in enumerate(unique_buttons, start=1):
+                btn_text = btn.text.strip()
+                provider = btn.get('title', '')
+
+                display_name = provider if provider else btn_text
+
+                match = re.search(r'\(([^)]+)\)', btn_text)
+                if match:
+                    provider_short = match.group(1)
+                else:
+                    provider_short = btn_text
+                
+                self.addDirectoryItem(
+                    f'[B][COLOR lightblue]{provider_short}[/COLOR] | [COLOR orange]{display_name}[/COLOR] | ({idx}) {hun_title}[/B]', 
+                    f'playmovie&url={quote_plus(alt_url)}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={display_name}', 
+                    img_url, 
+                    'DefaultMovies.png', 
+                    isFolder=False, 
+                    meta={'title': f'{display_name} ({idx}) - {hun_title}', 'plot': content}
+                )
+
         link_2_matches = re.findall(r'<a class=\"text-center list-group-item active\" href=\"(.*?)\"', str(soup))
         
         if link_2_matches:
             link_2 = link_2_matches[0].strip()
             resp2 = requests.get(link_2, headers=headers).text
             soup_2 = BeautifulSoup(resp2, 'html.parser')
-
+    
             play_icons = soup_2.find_all('i', {'data-mediatype': True, 'data-video_id': True})
-
+    
             unique_combinations = []
-
+    
             for play_icon in play_icons:
                 mediatype = play_icon['data-mediatype']
                 video_id = play_icon['data-video_id']
-
+    
                 td_tags = play_icon.find_all_previous('td', limit=5)
-
+    
                 provider = td_tags[3].text.strip()
                 lang = td_tags[2].text.strip()
                 quality = td_tags[1].text.strip()
-
+    
                 playicon_tag = td_tags[4].find('a', class_='playicon')
                 provider_link = playicon_tag['href'] if playicon_tag and 'href' in playicon_tag.attrs else None
                 
                 if provider_link and provider_link.startswith('//'):
                     provider_link = 'https:' + provider_link
-
+    
                 if mediatype and video_id and provider and lang and quality and provider_link:
                     lang_category = 'Szinkron' if 'szinkron' in lang.lower() else 'Felirat' if 'felirat' in lang.lower() else 'Eredeti' if 'eredet' in lang.lower() else lang
                     quali_category = 'Mozis' if 'mozi' in quality.lower() else quality
-
+    
                     combination_dict = {
                         "provider_link": provider_link,
                         "provider": provider,
                         "lang": lang_category,
                         "quality": quali_category,
                     }
-
+    
                     if combination_dict not in unique_combinations:
                         unique_combinations.append(combination_dict)
-
+    
                         self.addDirectoryItem(
                             f'[B][COLOR lightblue]{quali_category}[/COLOR] | [COLOR orange]{lang_category}[/COLOR] | [COLOR red]{provider}[/COLOR] | {hun_title}[/B]', 
                             f'playmovie&url={quote_plus(provider_link)}&img_url={img_url}&hun_title={hun_title}&content={content}&provider={provider}', 
@@ -194,8 +233,8 @@ class navigator:
                             isFolder=False, 
                             meta={'title': provider, 'plot': content}
                         )
-
-        self.endDirectory('movies')
+    
+        self.endDirectory('')
 
     def extractMovieProviders(self, mediatype, video_id, img_url, hun_title, content, provider):
         data = {
@@ -451,7 +490,7 @@ class navigator:
                 self.addDirectoryItem('[COLOR red]Keresési előzmények törlése[/COLOR]', 'deletesearchhistory', '', 'DefaultFolder.png')
         except:
             pass
-        self.endDirectory()
+        self.endDirectory('')
 
     def deleteSearchHistory(self):
         if os.path.exists(self.searchFileName):
